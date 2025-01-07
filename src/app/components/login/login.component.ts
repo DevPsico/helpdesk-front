@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
-import { FormControl, Validators } from '@angular/forms';
+import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
-import { Credenciais } from 'src/app/models/credenciais';
+import { AuthService } from 'src/app/services/auth.service';
 
 @Component({
   selector: 'app-login',
@@ -10,37 +10,40 @@ import { Credenciais } from 'src/app/models/credenciais';
 })
 export class LoginComponent implements OnInit {
 
-  credenciais: Credenciais = {
-    email: '' , 
-    senha: ''
-  }
+  form: FormGroup; // Formulário Reativo
 
-  email = new FormControl(null, Validators.email);
-  senha = new FormControl(null, Validators.minLength(3));
-
-
-
-  constructor(private toast: ToastrService) { 
-
-  }
+  constructor(
+    private fb: FormBuilder, 
+    private toast: ToastrService, 
+    private service: AuthService
+  ) {}
 
   ngOnInit(): void {
+    // Inicializa o FormGroup com os campos e suas validações
+    this.form = this.fb.group({
+      email: ['', [Validators.required, Validators.email]], // Campo de email
+      senha: ['', [Validators.required, Validators.minLength(3)]] // Campo de senha
+    });
   }
 
-  public logar(){
-
-    this.toast.error('Usuário e/ou senha inválidos !', 'Login');
-    this.credenciais.senha="";
-
-  }
-
-  public validaCampos () : boolean {
-    if (this.email.valid && this.senha.valid) {
-      
-      return true;
-    }else {
-      return false;
+  logar(): void {
+    if (this.form.invalid) {
+      this.toast.error('Preencha os campos corretamente!');
+      return;
     }
+
+    const credenciais = this.form.value; // Obtém os valores do formulário
+    this.service.authenticate(credenciais).subscribe(
+      resposta => {
+        this.toast.info(resposta.headers.get('Authorization') || 'Autenticação bem-sucedida!');
+      },
+      erro => {
+        this.toast.error('Erro ao autenticar. Verifique suas credenciais.');
+      }
+    );
   }
 
+  validaCampos(): boolean {
+    return this.form.valid; // Verifica se o formulário inteiro é válido
+  }
 }
